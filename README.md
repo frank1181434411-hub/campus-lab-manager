@@ -669,19 +669,1043 @@
 
 # 三、逻辑设计阶段
 
-> 待补充。
+## 3.1 逻辑设计目标
 
-## 3.1 关系模式设计
+逻辑设计阶段的任务是将概念设计阶段得到的 E-R 模型转换为关系数据库中的关系模式，并进一步明确每张表的字段、主键、外键、唯一约束、非空约束、检查约束、索引、视图以及部分业务规则实现方式。
 
-## 3.2 表结构设计
+本系统采用关系型数据库进行设计，逻辑设计遵循以下原则：
 
-## 3.3 主键、外键与完整性约束设计
+1. 每个独立实体转换为一张关系表；
+2. `1:N` 联系通常通过在 `N` 端加入外键实现；
+3. `1:0..1` 联系通过外键加唯一约束实现；
+4. 多属性标识对象使用复合主键表示；
+5. 动态业务记录使用独立表保存，避免直接覆盖历史数据；
+6. 能通过外键、唯一约束和检查约束表达的规则尽量在数据库层实现；
+7. 不能完全依靠普通约束表达的角色限制、状态联动等规则，通过触发器或应用程序逻辑辅助实现。
 
-## 3.4 索引设计
+本系统逻辑设计以 MySQL 数据库为参考。若使用其他数据库管理系统，字段类型和检查约束语法可根据实际环境进行调整。
 
-## 3.5 外模式设计
+### 3.1.1 逻辑结构设计思路
 
-## 3.6 触发器、存储过程与业务约束设计
+逻辑结构设计是在概念结构设计的基础上，将 E-R 模型中的实体、属性和联系转换为关系数据库可以直接表示的关系模式。本系统的逻辑结构设计重点解决以下问题：
+
+1. 将概念模型中的实体转换为关系表；
+2. 将实体之间的联系转换为主键、外键和关联字段；
+3. 明确每个关系模式的主属性、非主属性和引用关系；
+4. 根据业务规则设置唯一约束、非空约束、检查约束等完整性约束；
+5. 保证数据结构既能支持日常业务操作，又能支持后续查询统计和系统扩展。
+
+本系统中的核心数据对象包括用户账号、学生、教师、管理员、班级、课程、机房、机位、排课、上机记录和设备报修。根据这些对象的业务含义，可以将系统逻辑结构划分为四个部分：用户与教学组织结构、机房资源结构、排课与上机考勤结构、设备报修结构。
+
+### 3.1.2 E-R 模型向关系模型的转换
+
+根据概念设计阶段得到的实体和联系，本系统采用如下转换方法：
+
+| 概念模型对象 | 关系模型转换方式 | 转换结果 |
+|---|---|---|
+| 用户 User | 独立实体转换为独立关系表 | `user_account` |
+| 学生 Student | 角色扩展实体转换为独立关系表，并引用用户表 | `student(user_id)` |
+| 教师 Teacher | 角色扩展实体转换为独立关系表，并引用用户表 | `teacher(user_id)` |
+| 管理员 Admin | 角色扩展实体转换为独立关系表，并引用用户表 | `admin(user_id)` |
+| 班级 Class | 独立实体转换为独立关系表 | `class_info` |
+| 课程 Course | 独立实体转换为独立关系表 | `course` |
+| 机房 Room | 独立实体转换为独立关系表 | `room` |
+| 机位 Seat | 依赖机房存在，转换为带复合主键的关系表 | `seat(room_id, seat_no)` |
+| 排课 Schedule | 业务安排实体转换为独立关系表 | `schedule` |
+| 上机记录 UseLog | 动态业务记录转换为独立关系表 | `use_log` |
+| 报修 Repair | 动态业务记录转换为独立关系表 | `repair` |
+
+实体之间的联系主要通过外键实现。例如，学生与班级之间是一对多联系，因此在 `student` 表中设置 `class_id` 外键；机房与机位之间是一对多联系，因此在 `seat` 表中设置 `room_id` 外键；排课需要同时关联教师、班级、课程和机房，因此在 `schedule` 表中分别设置 `teacher_id`、`class_id`、`course_id` 和 `room_id` 外键。
+
+对于用户与学生、教师、管理员之间的角色扩展关系，本系统采用“统一用户表 + 角色扩展表”的设计方式。`user_account` 保存登录账号、密码、角色和账号状态等公共信息，`student`、`teacher`、`admin` 分别保存不同角色特有的信息。这样可以避免在多个用户表中重复保存账号和密码字段，也便于系统进行统一登录验证和权限判断。
+
+### 3.1.3 全局逻辑结构
+
+本系统最终形成的全局逻辑结构如下：
+
+```text
+user_account(user_id, username, password, role, status, phone)
+
+class_info(class_id, class_name, major, total_number)
+
+student(student_id, user_id, student_name, gender, grade, class_id)
+
+teacher(teacher_id, user_id, teacher_name, title)
+
+admin(admin_id, user_id, admin_name)
+
+course(course_id, course_name, total_hours, course_type)
+
+room(room_id, room_location, total_seats, open_status)
+
+seat(room_id, seat_no, ip_address, machine_config, seat_status)
+
+schedule(schedule_id, semester, week_no, weekday, class_period,
+         teacher_id, class_id, course_id, room_id)
+
+use_log(log_id, student_id, room_id, seat_no, schedule_id,
+        start_time, end_time, use_type, attendance_status)
+
+repair(repair_id, submitter_user_id, handler_user_id,
+       room_id, seat_no, report_time, fault_description, repair_status)
+```
+
+各关系之间的主要引用路径如下：
+
+1. `student.user_id`、`teacher.user_id`、`admin.user_id` 均引用 `user_account.user_id`；
+2. `student.class_id` 引用 `class_info.class_id`；
+3. `seat.room_id` 引用 `room.room_id`；
+4. `schedule.teacher_id` 引用 `teacher.teacher_id`；
+5. `schedule.class_id` 引用 `class_info.class_id`；
+6. `schedule.course_id` 引用 `course.course_id`；
+7. `schedule.room_id` 引用 `room.room_id`；
+8. `use_log.student_id` 引用 `student.student_id`；
+9. `use_log(room_id, seat_no)` 引用 `seat(room_id, seat_no)`；
+10. `use_log.schedule_id` 引用 `schedule.schedule_id`；
+11. `repair.submitter_user_id` 和 `repair.handler_user_id` 均引用 `user_account.user_id`；
+12. `repair(room_id, seat_no)` 引用 `seat(room_id, seat_no)`。
+
+通过上述引用关系，系统可以从学生上机记录追溯到学生、班级、机位、机房和排课信息，也可以从报修记录追溯到报修用户、处理用户和故障机位信息。
+
+### 3.1.4 关系规范化说明
+
+为减少数据冗余并避免插入异常、删除异常和更新异常，本系统关系模式设计基本满足第三范式要求。
+
+1. 每张表中的字段均为不可再分的原子数据项，满足第一范式；
+2. 对于使用单字段主键的关系表，非主属性完全依赖于主键，满足第二范式；
+3. `seat` 表采用 `(room_id, seat_no)` 作为复合主键，`ip_address`、`machine_config`、`seat_status` 均依赖于完整机位标识；
+4. 学生所属班级信息只在 `student` 表中保存 `class_id`，班级名称、专业等信息保存在 `class_info` 表中，避免班级信息在学生表中重复出现；
+5. 排课表只保存教师、班级、课程和机房的编号，不重复保存教师姓名、班级名称、课程名称和机房位置；
+6. 上机记录表只保存业务发生时的关键引用和时间信息，学生姓名、机房位置等展示信息通过连接查询或视图获得；
+7. 报修表只保存提交用户、处理用户和故障机位的引用编号，用户角色和机位详细信息由关联表提供。
+
+少量字段存在一定冗余，例如 `class_info.total_number` 和 `room.total_seats` 可以通过统计得到。本系统保留这些字段，主要是为了便于管理员快速查看班级人数和机房容量。在实际实现中，可通过应用程序或触发器维护其一致性，也可以在严格规范化设计中删除这些字段，改为实时统计。
+
+## 3.2 关系模式设计
+
+根据概念模型，本系统转换得到以下关系模式。下列关系模式中，`PK` 表示主键，`FK` 表示外键。
+
+### 3.2.1 用户与教学组织相关关系模式
+
+```text
+UserAccount(
+    user_id PK,
+    username,
+    password,
+    role,
+    status,
+    phone
+)
+
+Student(
+    student_id PK,
+    user_id FK,
+    student_name,
+    gender,
+    grade,
+    class_id FK
+)
+
+Teacher(
+    teacher_id PK,
+    user_id FK,
+    teacher_name,
+    title
+)
+
+Admin(
+    admin_id PK,
+    user_id FK,
+    admin_name
+)
+
+ClassInfo(
+    class_id PK,
+    class_name,
+    major,
+    total_number
+)
+
+Course(
+    course_id PK,
+    course_name,
+    total_hours,
+    course_type
+)
+```
+
+说明：
+
+1. `UserAccount` 表保存统一登录账号信息；
+2. `Student`、`Teacher`、`Admin` 分别保存三类用户的角色扩展信息；
+3. `Student.user_id`、`Teacher.user_id`、`Admin.user_id` 都引用 `UserAccount.user_id`；
+4. 为保证一个用户账号最多对应一种同类角色扩展信息，`Student.user_id`、`Teacher.user_id`、`Admin.user_id` 均设置唯一约束；
+5. `Student.class_id` 引用 `ClassInfo.class_id`，用于表示学生所属班级。
+
+### 3.2.2 机房资源相关关系模式
+
+```text
+Room(
+    room_id PK,
+    room_location,
+    total_seats,
+    open_status
+)
+
+Seat(
+    room_id PK, FK,
+    seat_no PK,
+    ip_address,
+    machine_config,
+    seat_status
+)
+```
+
+说明：
+
+1. `Room` 表保存机房基础信息；
+2. `Seat` 表保存机房中的具体机位；
+3. `Seat` 使用 `(room_id, seat_no)` 作为复合主键；
+4. `Seat.room_id` 引用 `Room.room_id`；
+5. 复合主键可以避免不同机房中相同机位号产生冲突。
+
+### 3.2.3 排课与上机考勤相关关系模式
+
+```text
+Schedule(
+    schedule_id PK,
+    semester,
+    week_no,
+    weekday,
+    class_period,
+    teacher_id FK,
+    class_id FK,
+    course_id FK,
+    room_id FK
+)
+
+UseLog(
+    log_id PK,
+    student_id FK,
+    room_id FK,
+    seat_no FK,
+    schedule_id FK NULL,
+    start_time,
+    end_time,
+    use_type,
+    attendance_status
+)
+```
+
+说明：
+
+1. `Schedule` 表表示教学排课记录；
+2. 一条排课记录关联一个教师、一个班级、一门课程和一个机房；
+3. `UseLog` 表表示学生实际发生的上机行为；
+4. `UseLog.student_id` 引用 `Student.student_id`；
+5. `UseLog(room_id, seat_no)` 引用 `Seat(room_id, seat_no)`；
+6. `UseLog.schedule_id` 是可空外键，引用 `Schedule.schedule_id`；
+7. 当 `UseLog.schedule_id` 为空时，表示自由上机记录；
+8. 当 `UseLog.schedule_id` 不为空时，表示课堂上机记录，可作为考勤依据。
+
+### 3.2.4 设备报修相关关系模式
+
+```text
+Repair(
+    repair_id PK,
+    submitter_user_id FK,
+    handler_user_id FK NULL,
+    room_id FK,
+    seat_no FK,
+    report_time,
+    fault_description,
+    repair_status
+)
+```
+
+说明：
+
+1. `Repair` 表表示设备故障报修记录；
+2. `submitter_user_id` 引用 `UserAccount.user_id`，表示报修提交用户；
+3. `handler_user_id` 引用 `UserAccount.user_id`，表示报修处理用户，该字段允许为空；
+4. `Repair(room_id, seat_no)` 引用 `Seat(room_id, seat_no)`；
+5. 业务规则要求提交用户应为学生或教师，处理用户应为管理员；
+6. 用户角色限制无法仅靠普通外键表达，需要通过触发器或应用层逻辑检查。
+
+## 3.3 表结构设计
+
+### 3.3.1 UserAccount 用户账号表
+
+| 字段名 | 数据类型 | 约束 | 说明 |
+|---|---|---|---|
+| user_id | INT | PK, AUTO_INCREMENT | 用户编号 |
+| username | VARCHAR(50) | NOT NULL, UNIQUE | 登录账号 |
+| password | VARCHAR(100) | NOT NULL | 登录密码 |
+| role | VARCHAR(20) | NOT NULL | 用户角色：student / teacher / admin |
+| status | VARCHAR(20) | NOT NULL, DEFAULT 'active' | 账号状态：active / disabled / locked |
+| phone | VARCHAR(20) | NULL | 联系电话 |
+
+设计说明：
+
+1. `user_id` 作为统一用户表主键；
+2. `username` 设置唯一约束，避免重复登录账号；
+3. `role` 用于区分学生、教师和管理员；
+4. `status` 用于控制账号是否允许登录；
+5. 密码字段在实际系统中应保存加密后的密码，本课程设计阶段只描述字段结构。
+
+### 3.3.2 ClassInfo 班级表
+
+| 字段名 | 数据类型 | 约束 | 说明 |
+|---|---|---|---|
+| class_id | VARCHAR(20) | PK | 班级编号 |
+| class_name | VARCHAR(50) | NOT NULL | 班级名称 |
+| major | VARCHAR(50) | NOT NULL | 所属专业 |
+| total_number | INT | DEFAULT 0 | 班级总人数 |
+
+设计说明：
+
+1. `class_id` 唯一标识一个班级；
+2. `total_number` 可以由系统维护，也可以根据学生表统计得到；
+3. 在严格设计中，为避免冗余，班级人数可通过查询统计生成；本系统保留该字段用于提高查询效率。
+
+### 3.3.3 Student 学生表
+
+| 字段名 | 数据类型 | 约束 | 说明 |
+|---|---|---|---|
+| student_id | VARCHAR(20) | PK | 学号 |
+| user_id | INT | NOT NULL, UNIQUE, FK | 对应用户编号 |
+| student_name | VARCHAR(50) | NOT NULL | 学生姓名 |
+| gender | VARCHAR(10) | NULL | 性别 |
+| grade | VARCHAR(20) | NULL | 年级 |
+| class_id | VARCHAR(20) | NOT NULL, FK | 所属班级编号 |
+
+设计说明：
+
+1. `student_id` 是学生业务主键；
+2. `user_id` 引用统一用户账号，并设置唯一约束；
+3. `class_id` 引用班级表，表示学生所属班级；
+4. 通过 `UserAccount.role = 'student'` 说明该用户账号对应学生身份。
+
+### 3.3.4 Teacher 教师表
+
+| 字段名 | 数据类型 | 约束 | 说明 |
+|---|---|---|---|
+| teacher_id | VARCHAR(20) | PK | 教师工号 |
+| user_id | INT | NOT NULL, UNIQUE, FK | 对应用户编号 |
+| teacher_name | VARCHAR(50) | NOT NULL | 教师姓名 |
+| title | VARCHAR(50) | NULL | 职称 |
+
+设计说明：
+
+1. `teacher_id` 是教师业务主键；
+2. `user_id` 引用统一用户账号，并设置唯一约束；
+3. 教师可以作为排课记录中的授课教师；
+4. 教师也可以作为报修提交用户。
+
+### 3.3.5 Admin 管理员表
+
+| 字段名 | 数据类型 | 约束 | 说明 |
+|---|---|---|---|
+| admin_id | VARCHAR(20) | PK | 管理员编号 |
+| user_id | INT | NOT NULL, UNIQUE, FK | 对应用户编号 |
+| admin_name | VARCHAR(50) | NOT NULL | 管理员姓名 |
+
+设计说明：
+
+1. `admin_id` 是管理员业务主键；
+2. `user_id` 引用统一用户账号，并设置唯一约束；
+3. 管理员负责维护基础数据、录入排课和处理报修；
+4. 报修记录中的处理用户应当对应管理员角色。
+
+### 3.3.6 Course 课程表
+
+| 字段名 | 数据类型 | 约束 | 说明 |
+|---|---|---|---|
+| course_id | VARCHAR(20) | PK | 课程号 |
+| course_name | VARCHAR(50) | NOT NULL | 课程名称 |
+| total_hours | INT | NOT NULL | 总学时 |
+| course_type | VARCHAR(20) | NULL | 课程性质：必修 / 选修 / 实验 |
+
+设计说明：
+
+1. `course_id` 唯一标识一门课程；
+2. 课程通过 `Schedule` 与教师、班级和机房产生联系；
+3. 系统不直接建立学生与课程的关系，学生上课信息通过班级排课推导得到。
+
+### 3.3.7 Room 机房表
+
+| 字段名 | 数据类型 | 约束 | 说明 |
+|---|---|---|---|
+| room_id | VARCHAR(20) | PK | 机房号 |
+| room_location | VARCHAR(100) | NOT NULL | 机房位置 |
+| total_seats | INT | NOT NULL | 总座数 |
+| open_status | VARCHAR(20) | NOT NULL, DEFAULT 'open' | 开放状态：open / closed / maintenance |
+
+设计说明：
+
+1. `room_id` 唯一标识一个机房；
+2. `open_status` 表示机房是否开放；
+3. 机房与机位之间是一对多关系。
+
+### 3.3.8 Seat 机位表
+
+| 字段名 | 数据类型 | 约束 | 说明 |
+|---|---|---|---|
+| room_id | VARCHAR(20) | PK, FK | 所属机房号 |
+| seat_no | VARCHAR(20) | PK | 机位号 |
+| ip_address | VARCHAR(50) | UNIQUE | IP 地址 |
+| machine_config | VARCHAR(200) | NULL | 机器配置 |
+| seat_status | VARCHAR(20) | NOT NULL, DEFAULT 'free' | 机位状态：free / self_study / class_in_use / fault |
+
+设计说明：
+
+1. `Seat` 使用 `(room_id, seat_no)` 作为复合主键；
+2. `room_id` 同时是引用 `Room(room_id)` 的外键；
+3. `seat_status` 用于记录机位当前状态；
+4. 故障机位不能被分配给学生使用。
+
+### 3.3.9 Schedule 排课表
+
+| 字段名 | 数据类型 | 约束 | 说明 |
+|---|---|---|---|
+| schedule_id | INT | PK, AUTO_INCREMENT | 排课编号 |
+| semester | VARCHAR(20) | NOT NULL | 学期 |
+| week_no | VARCHAR(50) | NOT NULL | 周次 |
+| weekday | TINYINT | NOT NULL | 星期，1-7 |
+| class_period | VARCHAR(20) | NOT NULL | 节次 |
+| teacher_id | VARCHAR(20) | NOT NULL, FK | 教师工号 |
+| class_id | VARCHAR(20) | NOT NULL, FK | 班级编号 |
+| course_id | VARCHAR(20) | NOT NULL, FK | 课程号 |
+| room_id | VARCHAR(20) | NOT NULL, FK | 机房号 |
+
+设计说明：
+
+1. `Schedule` 是由概念模型中的排课业务对象转换而来；
+2. 一条排课记录只能对应一个教师、一个班级、一门课程和一个机房；
+3. 为避免机房占用冲突，应对 `(room_id, semester, week_no, weekday, class_period)` 设置唯一约束；
+4. `weekday` 可限制在 1 到 7 之间。
+
+### 3.3.10 UseLog 上机记录表
+
+| 字段名 | 数据类型 | 约束 | 说明 |
+|---|---|---|---|
+| log_id | INT | PK, AUTO_INCREMENT | 记录编号 |
+| student_id | VARCHAR(20) | NOT NULL, FK | 学号 |
+| room_id | VARCHAR(20) | NOT NULL, FK | 机房号 |
+| seat_no | VARCHAR(20) | NOT NULL, FK | 机位号 |
+| schedule_id | INT | NULL, FK | 排课编号，可为空 |
+| start_time | DATETIME | NOT NULL | 上机时间 |
+| end_time | DATETIME | NULL | 下机时间 |
+| use_type | VARCHAR(20) | NOT NULL | 上机类型：free / class |
+| attendance_status | VARCHAR(20) | DEFAULT 'not_applicable' | 考勤状态 |
+
+设计说明：
+
+1. `UseLog` 保存学生实际发生的上机行为；
+2. `student_id` 引用 `Student(student_id)`；
+3. `(room_id, seat_no)` 引用 `Seat(room_id, seat_no)`；
+4. `schedule_id` 可为空，表示自由上机记录不关联排课；
+5. `use_type = 'class'` 时，`schedule_id` 原则上不应为空；
+6. `attendance_status` 可取 `normal`、`late`、`early_leave`、`absent`、`not_applicable` 等值；
+7. `end_time` 为空表示当前仍在上机。
+
+### 3.3.11 Repair 报修表
+
+| 字段名 | 数据类型 | 约束 | 说明 |
+|---|---|---|---|
+| repair_id | INT | PK, AUTO_INCREMENT | 报修编号 |
+| submitter_user_id | INT | NOT NULL, FK | 提交用户编号 |
+| handler_user_id | INT | NULL, FK | 处理用户编号 |
+| room_id | VARCHAR(20) | NOT NULL, FK | 机房号 |
+| seat_no | VARCHAR(20) | NOT NULL, FK | 机位号 |
+| report_time | DATETIME | NOT NULL | 报修时间 |
+| fault_description | VARCHAR(500) | NOT NULL | 故障描述 |
+| repair_status | VARCHAR(20) | NOT NULL, DEFAULT 'pending' | 维修状态：pending / processing / done |
+
+设计说明：
+
+1. `Repair` 保存设备故障上报与维修处理过程；
+2. `submitter_user_id` 表示提交报修的学生或教师用户；
+3. `handler_user_id` 表示处理报修的管理员用户，未处理时可以为空；
+4. `(room_id, seat_no)` 引用 `Seat(room_id, seat_no)`；
+5. `repair_status` 用于记录报修单处理进度；
+6. 提交人角色和处理人角色需要通过触发器或程序逻辑进行检查。
+
+## 3.4 主键、外键与完整性约束设计
+
+### 3.4.1 主键约束
+
+| 表名 | 主键 |
+|---|---|
+| user_account | user_id |
+| class_info | class_id |
+| student | student_id |
+| teacher | teacher_id |
+| admin | admin_id |
+| course | course_id |
+| room | room_id |
+| seat | room_id, seat_no |
+| schedule | schedule_id |
+| use_log | log_id |
+| repair | repair_id |
+
+主键设计说明：
+
+1. 基础实体表使用业务编号或自增编号作为主键；
+2. `Seat` 使用复合主键 `(room_id, seat_no)`，保证同一机房内机位唯一；
+3. 动态业务记录表 `Schedule`、`UseLog`、`Repair` 使用自增编号作为主键，便于记录历史业务数据。
+
+### 3.4.2 外键约束
+
+| 表名 | 外键字段 | 引用表与字段 | 说明 |
+|---|---|---|---|
+| student | user_id | user_account(user_id) | 学生对应统一用户账号 |
+| student | class_id | class_info(class_id) | 学生所属班级 |
+| teacher | user_id | user_account(user_id) | 教师对应统一用户账号 |
+| admin | user_id | user_account(user_id) | 管理员对应统一用户账号 |
+| seat | room_id | room(room_id) | 机位所属机房 |
+| schedule | teacher_id | teacher(teacher_id) | 排课授课教师 |
+| schedule | class_id | class_info(class_id) | 排课上课班级 |
+| schedule | course_id | course(course_id) | 排课课程 |
+| schedule | room_id | room(room_id) | 排课占用机房 |
+| use_log | student_id | student(student_id) | 上机学生 |
+| use_log | room_id, seat_no | seat(room_id, seat_no) | 上机机位 |
+| use_log | schedule_id | schedule(schedule_id) | 对应排课，可为空 |
+| repair | submitter_user_id | user_account(user_id) | 报修提交用户 |
+| repair | handler_user_id | user_account(user_id) | 报修处理用户，可为空 |
+| repair | room_id, seat_no | seat(room_id, seat_no) | 故障机位 |
+
+外键设计说明：
+
+1. 外键保证表间引用关系的正确性；
+2. 删除班级、机房、教师、课程等基础数据前，应先检查是否存在关联记录；
+3. `UseLog.schedule_id` 和 `Repair.handler_user_id` 允许为空；
+4. 报修提交者和处理者都引用 `UserAccount`，但角色合法性需要额外规则保证。
+
+### 3.4.3 唯一约束
+
+| 表名 | 唯一字段 | 说明 |
+|---|---|---|
+| user_account | username | 登录账号不能重复 |
+| student | user_id | 一个用户最多对应一条学生信息 |
+| teacher | user_id | 一个用户最多对应一条教师信息 |
+| admin | user_id | 一个用户最多对应一条管理员信息 |
+| seat | ip_address | 同一 IP 地址不能重复分配给多个机位 |
+| schedule | room_id, semester, week_no, weekday, class_period | 同一机房同一时间段不能重复排课 |
+
+### 3.4.4 检查约束
+
+为保证数据取值范围正确，应设置以下检查约束：
+
+| 表名 | 字段 | 允许值或范围 |
+|---|---|---|
+| user_account | role | student / teacher / admin |
+| user_account | status | active / disabled / locked |
+| room | open_status | open / closed / maintenance |
+| seat | seat_status | free / self_study / class_in_use / fault |
+| schedule | weekday | 1 到 7 |
+| use_log | use_type | free / class |
+| use_log | attendance_status | normal / late / early_leave / absent / not_applicable |
+| repair | repair_status | pending / processing / done |
+
+说明：
+
+1. MySQL 8.0 以上版本支持 `CHECK` 约束；
+2. 若实际环境使用较旧版本 MySQL，可通过触发器或应用程序逻辑实现等价限制；
+3. 角色与报修身份之间的复杂约束不适合仅用 `CHECK` 表达，需要结合触发器或应用层判断。
+
+## 3.5 关系表 SQL 定义示例
+
+以下 SQL 语句给出本系统主要关系表的定义示例，实际实现时可根据开发环境调整字段长度、字符集和命名规则。
+
+```sql
+CREATE TABLE user_account (
+    user_id INT PRIMARY KEY AUTO_INCREMENT,
+    username VARCHAR(50) NOT NULL UNIQUE,
+    password VARCHAR(100) NOT NULL,
+    role VARCHAR(20) NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'active',
+    phone VARCHAR(20),
+    CHECK (role IN ('student', 'teacher', 'admin')),
+    CHECK (status IN ('active', 'disabled', 'locked'))
+);
+
+CREATE TABLE class_info (
+    class_id VARCHAR(20) PRIMARY KEY,
+    class_name VARCHAR(50) NOT NULL,
+    major VARCHAR(50) NOT NULL,
+    total_number INT DEFAULT 0
+);
+
+CREATE TABLE student (
+    student_id VARCHAR(20) PRIMARY KEY,
+    user_id INT NOT NULL UNIQUE,
+    student_name VARCHAR(50) NOT NULL,
+    gender VARCHAR(10),
+    grade VARCHAR(20),
+    class_id VARCHAR(20) NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES user_account(user_id),
+    FOREIGN KEY (class_id) REFERENCES class_info(class_id)
+);
+
+CREATE TABLE teacher (
+    teacher_id VARCHAR(20) PRIMARY KEY,
+    user_id INT NOT NULL UNIQUE,
+    teacher_name VARCHAR(50) NOT NULL,
+    title VARCHAR(50),
+    FOREIGN KEY (user_id) REFERENCES user_account(user_id)
+);
+
+CREATE TABLE admin (
+    admin_id VARCHAR(20) PRIMARY KEY,
+    user_id INT NOT NULL UNIQUE,
+    admin_name VARCHAR(50) NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES user_account(user_id)
+);
+
+CREATE TABLE course (
+    course_id VARCHAR(20) PRIMARY KEY,
+    course_name VARCHAR(50) NOT NULL,
+    total_hours INT NOT NULL,
+    course_type VARCHAR(20)
+);
+
+CREATE TABLE room (
+    room_id VARCHAR(20) PRIMARY KEY,
+    room_location VARCHAR(100) NOT NULL,
+    total_seats INT NOT NULL,
+    open_status VARCHAR(20) NOT NULL DEFAULT 'open',
+    CHECK (open_status IN ('open', 'closed', 'maintenance'))
+);
+
+CREATE TABLE seat (
+    room_id VARCHAR(20) NOT NULL,
+    seat_no VARCHAR(20) NOT NULL,
+    ip_address VARCHAR(50) UNIQUE,
+    machine_config VARCHAR(200),
+    seat_status VARCHAR(20) NOT NULL DEFAULT 'free',
+    PRIMARY KEY (room_id, seat_no),
+    FOREIGN KEY (room_id) REFERENCES room(room_id),
+    CHECK (seat_status IN ('free', 'self_study', 'class_in_use', 'fault'))
+);
+
+CREATE TABLE schedule (
+    schedule_id INT PRIMARY KEY AUTO_INCREMENT,
+    semester VARCHAR(20) NOT NULL,
+    week_no VARCHAR(50) NOT NULL,
+    weekday TINYINT NOT NULL,
+    class_period VARCHAR(20) NOT NULL,
+    teacher_id VARCHAR(20) NOT NULL,
+    class_id VARCHAR(20) NOT NULL,
+    course_id VARCHAR(20) NOT NULL,
+    room_id VARCHAR(20) NOT NULL,
+    FOREIGN KEY (teacher_id) REFERENCES teacher(teacher_id),
+    FOREIGN KEY (class_id) REFERENCES class_info(class_id),
+    FOREIGN KEY (course_id) REFERENCES course(course_id),
+    FOREIGN KEY (room_id) REFERENCES room(room_id),
+    UNIQUE (room_id, semester, week_no, weekday, class_period),
+    CHECK (weekday BETWEEN 1 AND 7)
+);
+
+CREATE TABLE use_log (
+    log_id INT PRIMARY KEY AUTO_INCREMENT,
+    student_id VARCHAR(20) NOT NULL,
+    room_id VARCHAR(20) NOT NULL,
+    seat_no VARCHAR(20) NOT NULL,
+    schedule_id INT NULL,
+    start_time DATETIME NOT NULL,
+    end_time DATETIME NULL,
+    use_type VARCHAR(20) NOT NULL,
+    attendance_status VARCHAR(20) DEFAULT 'not_applicable',
+    FOREIGN KEY (student_id) REFERENCES student(student_id),
+    FOREIGN KEY (room_id, seat_no) REFERENCES seat(room_id, seat_no),
+    FOREIGN KEY (schedule_id) REFERENCES schedule(schedule_id),
+    CHECK (use_type IN ('free', 'class')),
+    CHECK (attendance_status IN ('normal', 'late', 'early_leave', 'absent', 'not_applicable'))
+);
+
+CREATE TABLE repair (
+    repair_id INT PRIMARY KEY AUTO_INCREMENT,
+    submitter_user_id INT NOT NULL,
+    handler_user_id INT NULL,
+    room_id VARCHAR(20) NOT NULL,
+    seat_no VARCHAR(20) NOT NULL,
+    report_time DATETIME NOT NULL,
+    fault_description VARCHAR(500) NOT NULL,
+    repair_status VARCHAR(20) NOT NULL DEFAULT 'pending',
+    FOREIGN KEY (submitter_user_id) REFERENCES user_account(user_id),
+    FOREIGN KEY (handler_user_id) REFERENCES user_account(user_id),
+    FOREIGN KEY (room_id, seat_no) REFERENCES seat(room_id, seat_no),
+    CHECK (repair_status IN ('pending', 'processing', 'done'))
+);
+```
+
+## 3.6 索引设计
+
+索引设计主要围绕查询频率高的字段、连接字段和统计字段展开。本系统既需要支持学生查询个人记录，也需要支持教师查询考勤和管理员查询机房状态，因此应对常用外键和时间字段建立索引。
+
+| 索引名 | 表名 | 字段 | 设计目的 |
+|---|---|---|---|
+| idx_student_class | student | class_id | 加快按班级查询学生 |
+| idx_schedule_teacher | schedule | teacher_id | 加快教师查询本人课表 |
+| idx_schedule_class | schedule | class_id | 加快班级课表查询 |
+| idx_schedule_room_time | schedule | room_id, semester, week_no, weekday, class_period | 加快排课冲突检查和机房占用查询 |
+| idx_use_log_student_time | use_log | student_id, start_time | 加快学生个人上机历史查询 |
+| idx_use_log_seat_time | use_log | room_id, seat_no, start_time | 加快机位使用历史查询 |
+| idx_use_log_schedule | use_log | schedule_id | 加快课堂考勤查询 |
+| idx_repair_status | repair | repair_status | 加快待处理报修查询 |
+| idx_repair_submitter | repair | submitter_user_id | 加快用户报修记录查询 |
+| idx_repair_handler | repair | handler_user_id | 加快管理员处理记录查询 |
+
+索引 SQL 示例：
+
+```sql
+CREATE INDEX idx_student_class ON student(class_id);
+
+CREATE INDEX idx_schedule_teacher ON schedule(teacher_id);
+CREATE INDEX idx_schedule_class ON schedule(class_id);
+CREATE INDEX idx_schedule_room_time 
+ON schedule(room_id, semester, week_no, weekday, class_period);
+
+CREATE INDEX idx_use_log_student_time ON use_log(student_id, start_time);
+CREATE INDEX idx_use_log_seat_time ON use_log(room_id, seat_no, start_time);
+CREATE INDEX idx_use_log_schedule ON use_log(schedule_id);
+
+CREATE INDEX idx_repair_status ON repair(repair_status);
+CREATE INDEX idx_repair_submitter ON repair(submitter_user_id);
+CREATE INDEX idx_repair_handler ON repair(handler_user_id);
+```
+
+索引设计说明：
+
+1. 主键和唯一约束会自动建立索引；
+2. 外键字段通常也是高频连接字段，应建立普通索引；
+3. 排课冲突检查依赖机房和时间字段，因此设置组合索引；
+4. 上机记录查询通常按学生和时间范围进行，因此设置 `(student_id, start_time)` 组合索引；
+5. 报修处理查询通常按状态筛选，因此对 `repair_status` 建立索引。
+
+## 3.7 外模式设计
+
+外模式是面向不同用户角色的数据视图。通过视图可以简化查询语句，隐藏部分敏感字段，并为学生、教师、管理员提供不同的数据访问角度。
+
+### 3.7.1 学生个人上机历史视图
+
+该视图用于学生查询自己的上机历史，隐藏系统内部外键细节，展示机房、机位、上机时间、下机时间和考勤状态。
+
+```sql
+CREATE VIEW v_student_use_history AS
+SELECT
+    s.student_id,
+    s.student_name,
+    r.room_id,
+    r.room_location,
+    ul.seat_no,
+    ul.start_time,
+    ul.end_time,
+    ul.use_type,
+    ul.attendance_status
+FROM use_log ul
+JOIN student s ON ul.student_id = s.student_id
+JOIN room r ON ul.room_id = r.room_id;
+```
+
+### 3.7.2 教师课表视图
+
+该视图用于教师查询本人排课信息。
+
+```sql
+CREATE VIEW v_teacher_schedule AS
+SELECT
+    t.teacher_id,
+    t.teacher_name,
+    sc.schedule_id,
+    c.course_name,
+    ci.class_name,
+    r.room_id,
+    r.room_location,
+    sc.semester,
+    sc.week_no,
+    sc.weekday,
+    sc.class_period
+FROM schedule sc
+JOIN teacher t ON sc.teacher_id = t.teacher_id
+JOIN course c ON sc.course_id = c.course_id
+JOIN class_info ci ON sc.class_id = ci.class_id
+JOIN room r ON sc.room_id = r.room_id;
+```
+
+### 3.7.3 课堂考勤查询视图
+
+该视图用于教师查看某节课的课堂上机考勤情况。
+
+```sql
+CREATE VIEW v_class_attendance AS
+SELECT
+    sc.schedule_id,
+    c.course_name,
+    ci.class_name,
+    t.teacher_name,
+    s.student_id,
+    s.student_name,
+    ul.start_time,
+    ul.end_time,
+    ul.attendance_status
+FROM schedule sc
+JOIN course c ON sc.course_id = c.course_id
+JOIN class_info ci ON sc.class_id = ci.class_id
+JOIN teacher t ON sc.teacher_id = t.teacher_id
+LEFT JOIN use_log ul ON sc.schedule_id = ul.schedule_id
+LEFT JOIN student s ON ul.student_id = s.student_id;
+```
+
+### 3.7.4 机房机位状态视图
+
+该视图用于学生、教师和管理员查看机房中机位状态。
+
+```sql
+CREATE VIEW v_room_seat_status AS
+SELECT
+    r.room_id,
+    r.room_location,
+    r.open_status,
+    se.seat_no,
+    se.ip_address,
+    se.machine_config,
+    se.seat_status
+FROM room r
+JOIN seat se ON r.room_id = se.room_id;
+```
+
+### 3.7.5 设备报修处理视图
+
+该视图用于管理员查看报修信息和处理状态。
+
+```sql
+CREATE VIEW v_repair_detail AS
+SELECT
+    rp.repair_id,
+    rp.room_id,
+    rp.seat_no,
+    rp.report_time,
+    rp.fault_description,
+    rp.repair_status,
+    submitter.username AS submitter_username,
+    submitter.role AS submitter_role,
+    handler.username AS handler_username,
+    handler.role AS handler_role
+FROM repair rp
+JOIN user_account submitter ON rp.submitter_user_id = submitter.user_id
+LEFT JOIN user_account handler ON rp.handler_user_id = handler.user_id;
+```
+
+外模式设计说明：
+
+1. 学生主要访问个人上机记录和设备报修状态；
+2. 教师主要访问本人课表和课堂考勤；
+3. 管理员主要访问机房状态、排课信息和报修处理信息；
+4. 视图可以减少复杂连接查询，提高系统功能实现的清晰度。
+
+## 3.8 触发器、存储过程与业务约束设计
+
+普通主键、外键、唯一约束和检查约束无法完全表达所有业务规则。对于机位状态联动、报修角色限制、上下机状态更新等规则，需要通过触发器、存储过程或应用程序逻辑实现。
+
+### 3.8.1 报修提交人角色检查
+
+业务规则要求报修提交人必须是学生或教师，不能是管理员。因此可以在插入报修记录前检查提交用户角色。
+
+```sql
+DELIMITER //
+
+CREATE TRIGGER trg_repair_check_submitter
+BEFORE INSERT ON repair
+FOR EACH ROW
+BEGIN
+    DECLARE submitter_role VARCHAR(20);
+
+    SELECT role INTO submitter_role
+    FROM user_account
+    WHERE user_id = NEW.submitter_user_id;
+
+    IF submitter_role NOT IN ('student', 'teacher') THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Repair submitter must be student or teacher.';
+    END IF;
+END //
+
+DELIMITER ;
+```
+
+### 3.8.2 报修处理人角色检查
+
+业务规则要求报修处理人必须是管理员。如果报修记录尚未处理，`handler_user_id` 可以为空；若不为空，则必须对应管理员账号。
+
+```sql
+DELIMITER //
+
+CREATE TRIGGER trg_repair_check_handler
+BEFORE UPDATE ON repair
+FOR EACH ROW
+BEGIN
+    DECLARE handler_role VARCHAR(20);
+
+    IF NEW.handler_user_id IS NOT NULL THEN
+        SELECT role INTO handler_role
+        FROM user_account
+        WHERE user_id = NEW.handler_user_id;
+
+        IF handler_role <> 'admin' THEN
+            SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Repair handler must be admin.';
+        END IF;
+    END IF;
+END //
+
+DELIMITER ;
+```
+
+### 3.8.3 报修后自动锁定机位
+
+当新增报修记录后，系统应自动将对应机位状态修改为故障，避免继续分配给学生使用。
+
+```sql
+DELIMITER //
+
+CREATE TRIGGER trg_repair_lock_seat
+AFTER INSERT ON repair
+FOR EACH ROW
+BEGIN
+    UPDATE seat
+    SET seat_status = 'fault'
+    WHERE room_id = NEW.room_id
+      AND seat_no = NEW.seat_no;
+END //
+
+DELIMITER ;
+```
+
+### 3.8.4 维修完成后恢复机位状态
+
+当报修状态由未完成变为已完成时，系统可以将对应机位恢复为空闲状态。
+
+```sql
+DELIMITER //
+
+CREATE TRIGGER trg_repair_release_seat
+AFTER UPDATE ON repair
+FOR EACH ROW
+BEGIN
+    IF NEW.repair_status = 'done' AND OLD.repair_status <> 'done' THEN
+        UPDATE seat
+        SET seat_status = 'free'
+        WHERE room_id = NEW.room_id
+          AND seat_no = NEW.seat_no;
+    END IF;
+END //
+
+DELIMITER ;
+```
+
+### 3.8.5 上机时更新机位状态
+
+学生上机后，系统应根据上机类型更新机位状态。自由上机时机位状态改为 `self_study`，课堂上机时机位状态改为 `class_in_use`。
+
+```sql
+DELIMITER //
+
+CREATE TRIGGER trg_use_log_occupy_seat
+AFTER INSERT ON use_log
+FOR EACH ROW
+BEGIN
+    IF NEW.use_type = 'class' THEN
+        UPDATE seat
+        SET seat_status = 'class_in_use'
+        WHERE room_id = NEW.room_id
+          AND seat_no = NEW.seat_no;
+    ELSE
+        UPDATE seat
+        SET seat_status = 'self_study'
+        WHERE room_id = NEW.room_id
+          AND seat_no = NEW.seat_no;
+    END IF;
+END //
+
+DELIMITER ;
+```
+
+### 3.8.6 下机时释放机位
+
+学生下机后，系统更新 `UseLog.end_time`。当 `end_time` 从空值变为非空值时，若机位没有故障，则释放为 `free`。
+
+```sql
+DELIMITER //
+
+CREATE TRIGGER trg_use_log_release_seat
+AFTER UPDATE ON use_log
+FOR EACH ROW
+BEGIN
+    IF OLD.end_time IS NULL AND NEW.end_time IS NOT NULL THEN
+        UPDATE seat
+        SET seat_status = 'free'
+        WHERE room_id = NEW.room_id
+          AND seat_no = NEW.seat_no
+          AND seat_status <> 'fault';
+    END IF;
+END //
+
+DELIMITER ;
+```
+
+### 3.8.7 排课冲突约束
+
+排课冲突主要通过唯一约束实现：
+
+```sql
+UNIQUE (room_id, semester, week_no, weekday, class_period)
+```
+
+该约束表示同一机房在同一学期、周次、星期和节次内只能出现一条排课记录。如果管理员录入冲突排课，数据库会拒绝插入，从而保证机房排课的一致性。
+
+### 3.8.8 课堂上机与自由上机约束
+
+`UseLog.schedule_id` 的可空设计用于区分两种上机类型：
+
+1. 当 `use_type = 'free'` 时，`schedule_id` 可以为空；
+2. 当 `use_type = 'class'` 时，`schedule_id` 原则上应不为空；
+3. 若实际数据库不便使用复杂检查约束，可由应用程序在学生登录时判断是否存在对应排课记录。
+
+可选检查约束如下：
+
+```sql
+CHECK (
+    (use_type = 'free' AND schedule_id IS NULL)
+    OR
+    (use_type = 'class' AND schedule_id IS NOT NULL)
+)
+```
+
+说明：部分数据库对包含可空字段的复杂检查约束支持程度不同，实际实现时可以改为触发器或程序逻辑。
+
+### 3.8.9 考勤状态生成规则
+
+考勤状态可以由应用程序根据排课时间和学生实际上机时间生成，也可以通过存储过程实现。基本规则如下：
+
+| 条件 | 考勤状态 |
+|---|---|
+| 自由上机记录 | not_applicable |
+| 上课开始后规定时间内登录 | normal |
+| 超过规定时间登录 | late |
+| 课程结束前提前下机超过规定时间 | early_leave |
+| 课程时间段内没有上机记录 | absent |
+
+由于本系统当前排课时间使用“学期、周次、星期、节次”表示，而 `UseLog` 使用具体日期时间表示，两者之间需要依赖校历和节次时间表进行转换。因此，考勤状态生成规则主要在应用程序层实现，数据库中只保存最终生成的 `attendance_status`。
+
+## 3.9 逻辑设计小结
+
+本阶段将概念设计中的实体和联系转换为了关系数据库中的表结构。通过统一用户表 `user_account` 实现学生、教师和管理员的统一登录与权限管理；通过 `student`、`teacher`、`admin` 保存角色扩展信息；通过 `room` 和 `seat` 表示机房资源；通过 `schedule` 表示教学排课；通过 `use_log` 表示学生实际上机记录；通过 `repair` 表示设备报修和维修处理过程。
+
+在完整性约束方面，系统通过主键保证实体唯一性，通过外键保证实体间引用正确性，通过唯一约束避免账号重复和排课冲突，通过检查约束限制状态字段取值范围。对于普通约束难以表达的业务规则，例如报修人角色限制、处理人角色限制、机位状态联动和考勤状态生成，则通过触发器、存储过程或应用程序逻辑实现。
+
+逻辑设计结果为后续物理设计和应用系统实施提供了明确的数据结构基础。
 
 ---
 
