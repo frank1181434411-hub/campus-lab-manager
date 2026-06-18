@@ -3,6 +3,8 @@
 
 USE campus_lab_manager;
 
+SET NAMES utf8mb4;
+
 INSERT INTO user_account (user_id, username, password, role, status, phone) VALUES
 (1, 'stu001', '123456', 'student', 'active', '13800000001'),
 (2, 'stu002', '123456', 'student', 'active', '13800000002'),

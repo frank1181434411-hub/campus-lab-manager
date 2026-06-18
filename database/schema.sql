@@ -7,6 +7,8 @@ CREATE DATABASE IF NOT EXISTS campus_lab_manager
 
 USE campus_lab_manager;
 
+SET NAMES utf8mb4;
+
 SET FOREIGN_KEY_CHECKS = 0;
 
 DROP VIEW IF EXISTS v_repair_detail;
