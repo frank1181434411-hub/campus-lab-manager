@@ -1,4 +1,4 @@
-﻿-- Common test and defense queries for Campus Lab Manager
+-- Common test and defense queries for Campus Lab Manager
 
 USE campus_lab_manager;
 
