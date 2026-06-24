@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}排课列表{% endblock %}
+{% block content %}
+{% if owner=="admin" %}
+<section class="panel">
+    <h2>新增排课</h2>
+    <form method="post" action="{{ url_for('admin_schedule_create') }}" class="form-grid">
+        <label>学期<input name="semester" value="2025-2026-1" required></label>
+        <label>周次<input name="week_no" value="1-16" required></label>
+        <label>星期<input name="weekday" type="number" min="1" max="7" required></label>
+        <label>节次<input name="class_period" placeholder="1-2" required></label>
+        <label>教师
+            <select name="teacher_id">{% for item in teachers %}<option value="{{ item.teacher_id }}">{{ item.teacher_name }}</option>{% endfor %}</select>
+        </label>
+        <label>班级
+            <select name="class_id">{% for item in classes %}<option value="{{ item.class_id }}">{{ item.class_name }}</option>{% endfor %}</select>
+        </label>
+        <label>课程
+            <select name="course_id">{% for item in courses %}<option value="{{ item.course_id }}">{{ item.course_name }}</option>{% endfor %}</select>
+        </label>
+        <label>机房
+            <select name="room_id">{% for item in rooms %}<option value="{{ item.room_id }}">{{ item.room_id }}</option>{% endfor %}</select>
+        </label>
+        <button type="submit">创建排课</button>
+    </form>
+</section>
+{% endif %}
+
+<section class="panel">
+    <h2>{% if owner=="teacher" %}我的课表{% else %}排课管理{% endif %}</h2>
+    <table>
+        <thead><tr><th>编号</th><th>课程</th><th>教师</th><th>班级</th><th>机房</th><th>学期</th><th>周次</th><th>星期</th><th>节次</th><th>操作</th></tr></thead>
+        <tbody>
+        {% for row in schedules %}
+            <tr>
+                <td>{{ row.schedule_id }}</td>
+                <td>{{ row.course_name }}</td>
+                <td>{{ row.teacher_name }}</td>
+                <td>{{ row.class_name }}</td>
+                <td>{{ row.room_id }}</td>
+                <td>{{ row.semester }}</td>
+                <td>{{ row.week_no }}</td>
+                <td>{{ row.weekday }}</td>
+                <td>{{ row.class_period }}</td>
+                <td>
+                    {% if owner=="teacher" %}
+                        <a href="{{ url_for('teacher_attendance', schedule_id=row.schedule_id) }}">考勤</a>
+                    {% elif owner=="admin" %}
+                        <form method="post" action="{{ url_for('admin_schedule_edit', schedule_id=row.schedule_id) }}" class="compact-form">
+                            <input name="semester" value="{{ row.semester }}" required>
+                            <input name="week_no" value="{{ row.week_no }}" required>
+                            <input name="weekday" value="{{ row.weekday }}" required>
+                            <input name="class_period" value="{{ row.class_period }}" required>
+                            <input name="teacher_id" value="{{ row.teacher_id }}" required>
+                            <input name="class_id" value="{{ row.class_id }}" required>
+                            <input name="course_id" value="{{ row.course_id }}" required>
+                            <input name="room_id" value="{{ row.room_id }}" required>
+                            <button type="submit">保存</button>
+                        </form>
+                        <form method="post" action="{{ url_for('admin_schedule_delete', schedule_id=row.schedule_id) }}" class="inline-form">
+                            <button type="submit" onclick="return confirm('确认删除该排课吗？')">删除</button>
+                        </form>
+                    {% endif %}
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</section>
+{% endblock %}

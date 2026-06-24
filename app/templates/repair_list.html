@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}设备报修{% endblock %}
+{% block content %}
+{% if session.get("role") in ["student", "teacher"] %}
+<section class="panel">
+    <h2>提交报修</h2>
+    <form method="post" action="{{ url_for('repair_create') }}" class="form-grid">
+        <label>机房号<input name="room_id" required></label>
+        <label>机位号<input name="seat_no" required></label>
+        <label class="wide">故障描述<input name="fault_description" required></label>
+        <button type="submit">提交报修</button>
+    </form>
+</section>
+{% endif %}
+
+<section class="panel">
+    <h2>报修记录</h2>
+    {% if session.get("role")=="admin" %}
+    <form method="get" class="inline-form">
+        <select name="status">
+            <option value="">全部状态</option>
+            <option value="pending">待处理</option>
+            <option value="processing">处理中</option>
+            <option value="done">已完成</option>
+        </select>
+        <input name="room_id" placeholder="机房号">
+        <button type="submit">筛选</button>
+    </form>
+    {% endif %}
+    <table>
+        <thead><tr><th>编号</th><th>机房</th><th>机位</th><th>提交人</th><th>处理人</th><th>时间</th><th>描述</th><th>状态</th><th>操作</th></tr></thead>
+        <tbody>
+        {% for row in repairs %}
+            <tr>
+                <td>{{ row.repair_id }}</td>
+                <td>{{ row.room_id }}</td>
+                <td>{{ row.seat_no }}</td>
+                <td>{{ row.submitter_username }}</td>
+                <td>{{ row.handler_username or "-" }}</td>
+                <td>{{ row.report_time }}</td>
+                <td>{{ row.fault_description }}</td>
+                <td>{{ row.repair_status|label }}</td>
+                <td>
+                    {% if session.get("role")=="admin" %}
+                    <form method="post" action="{{ url_for('repair_assign', repair_id=row.repair_id) }}" class="inline-form">
+                        <button type="submit">分配给我</button>
+                    </form>
+                    <form method="post" action="{{ url_for('repair_status', repair_id=row.repair_id) }}" class="inline-form">
+                        <select name="repair_status">
+                            <option value="pending">待处理</option>
+                            <option value="processing">处理中</option>
+                            <option value="done">已完成</option>
+                        </select>
+                        <button type="submit" onclick="return confirm('确认更新维修状态吗？')">更新</button>
+                    </form>
+                    {% else %}
+                    -
+                    {% endif %}
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</section>
+{% endblock %}

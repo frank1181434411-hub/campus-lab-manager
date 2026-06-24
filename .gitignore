@@ -1,4 +1,38 @@
-database/import_database.bat
-database/import_schema_only.bat
-database/run_tests.bat
+# Ignore everything by default.
+*
+
+# Keep Git ignore rules.
+!.gitignore
+
+# Keep project docs and config examples.
+!README.md
+!requirements.txt
+!.env.example
+
+# Keep database source SQL files.
+!database/
+!database/**/
+!database/schema.sql
+!database/sample_data.sql
+!database/queries.sql
+
+# Keep Flask application source.
+!app/
+!app/**/
+!app/**/*.py
+!app/**/*.html
+!app/**/*.css
+
+# Keep E-R diagram images.
+!*.png
+
+# Always ignore local secrets, caches, and local helper/test files.
+.env
+__pycache__/
+**/__pycache__/
+*.pyc
+database/*.bat
 database/test_cases.sql
+for_codex.md
+for_codex
+.agents/

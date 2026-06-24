@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block title %}学生首页{% endblock %}
+{% block content %}
+<section class="grid two">
+    <div class="panel">
+        <h2>个人信息</h2>
+        <p>学号：{{ detail.student_id }}</p>
+        <p>姓名：{{ detail.display_name }}</p>
+        <p>班级：{{ detail.class_name }}</p>
+        <form method="post" action="{{ url_for('change_password') }}" class="inline-form">
+            <input name="password" type="password" placeholder="新密码" required>
+            <button type="submit">修改密码</button>
+        </form>
+    </div>
+    <div class="panel">
+        <h2>当前上机状态</h2>
+        {% if active %}
+            <p>{{ active.room_id }} - {{ active.seat_no }}，{{ active.use_type|label }}，开始：{{ active.start_time }}</p>
+            <form method="post" action="{{ url_for('finish_use') }}">
+                <input type="hidden" name="log_id" value="{{ active.log_id }}">
+                <button type="submit" onclick="return confirm('确认下机吗？')">下机</button>
+            </form>
+        {% else %}
+            <p>当前没有未结束的上机记录。</p>
+        {% endif %}
+    </div>
+</section>
+
+<section class="panel">
+    <h2>开始上机</h2>
+    <form method="post" action="{{ url_for('start_use') }}" class="form-grid">
+        <label>类型
+            <select name="mode">
+                <option value="free">自由上机</option>
+                <option value="class">课堂上机</option>
+            </select>
+        </label>
+        <label>机房号<input name="room_id" placeholder="如 R101" required></label>
+        <label>机位号<input name="seat_no" placeholder="如 01" required></label>
+        <label>排课编号<input name="schedule_id" placeholder="课堂上机填写"></label>
+        <button type="submit">开始上机</button>
+    </form>
+</section>
+
+<section class="panel">
+    <h2>可用机房</h2>
+    <table>
+        <thead><tr><th>机房</th><th>位置</th><th>状态</th><th>空闲</th><th>自习中</th><th>上课中</th><th>故障</th></tr></thead>
+        <tbody>
+        {% for room in rooms %}
+            <tr>
+                <td>{{ room.room_id }}</td>
+                <td>{{ room.room_location }}</td>
+                <td>{{ room.open_status|label }}</td>
+                <td>{{ room.free_count or 0 }}</td>
+                <td>{{ room.self_study_count or 0 }}</td>
+                <td>{{ room.class_in_use_count or 0 }}</td>
+                <td>{{ room.fault_count or 0 }}</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</section>
+
+<section class="grid two">
+    <div class="panel">
+        <h2>班级排课</h2>
+        <table>
+            <thead><tr><th>编号</th><th>课程</th><th>机房</th><th>星期</th><th>节次</th></tr></thead>
+            <tbody>
+            {% for row in schedules %}
+                <tr><td>{{ row.schedule_id }}</td><td>{{ row.course_name }}</td><td>{{ row.room_id }}</td><td>{{ row.weekday }}</td><td>{{ row.class_period }}</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div class="panel">
+        <h2>最近上机</h2>
+        <table>
+            <thead><tr><th>机房</th><th>机位</th><th>开始</th><th>状态</th></tr></thead>
+            <tbody>
+            {% for row in history %}
+                <tr><td>{{ row.room_id }}</td><td>{{ row.seat_no }}</td><td>{{ row.start_time }}</td><td>{{ row.attendance_status|label }}</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<section class="grid two">
+    <div class="panel">
+        <h2>最近考勤</h2>
+        <table>
+            <thead><tr><th>课程</th><th>节次</th><th>开始</th><th>考勤</th></tr></thead>
+            <tbody>
+            {% for row in attendance %}
+                <tr><td>{{ row.course_name }}</td><td>{{ row.class_period }}</td><td>{{ row.start_time }}</td><td>{{ row.attendance_status|label }}</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div class="panel">
+        <h2>我的报修</h2>
+        <table>
+            <thead><tr><th>机房</th><th>机位</th><th>时间</th><th>状态</th></tr></thead>
+            <tbody>
+            {% for row in repairs %}
+                <tr><td>{{ row.room_id }}</td><td>{{ row.seat_no }}</td><td>{{ row.report_time }}</td><td>{{ row.repair_status|label }}</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

@@ -51,16 +51,16 @@ ON DUPLICATE KEY UPDATE
     admin_name = VALUES(admin_name);
 
 INSERT INTO course (course_id, course_name, total_hours, course_type) VALUES
-('DB001', '数据库原理与应用', 48, '必修'),
-('LAB001', '计算机基础实验', 32, '实验')
+('DB001', '数据结构', 48, '必修'),
+('LAB001', '计算机组成原理', 48, '必修')
 ON DUPLICATE KEY UPDATE
     course_name = VALUES(course_name),
     total_hours = VALUES(total_hours),
     course_type = VALUES(course_type);
 
 INSERT INTO room (room_id, room_location, total_seats, open_status) VALUES
-('R101', '一号教学楼 101', 5, 'open'),
-('R102', '一号教学楼 102', 5, 'open')
+('R101', 'WM2207', 5, 'open'),
+('R102', 'WM3409', 5, 'open')
 ON DUPLICATE KEY UPDATE
     room_location = VALUES(room_location),
     total_seats = VALUES(total_seats),

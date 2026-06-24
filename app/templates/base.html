@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <title>{% block title %}高校机房管理系统{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <header class="topbar">
+        <div>
+            <h1>高校机房管理系统</h1>
+        </div>
+        <div class="userbox">
+            {% if session.get("user_id") %}
+                <span>{{ session.get("display_name") }}</span>
+                <span>{{ session.get("role")|label }}</span>
+                <a href="{{ url_for('logout') }}">退出</a>
+            {% endif %}
+        </div>
+    </header>
+
+    {% if session.get("user_id") %}
+    <nav class="nav">
+        <a href="{{ url_for(session.get('role')) }}">首页</a>
+        <a href="{{ url_for('rooms') }}">机房机位</a>
+        {% if session.get("role")=="student" %}
+            <a href="{{ url_for('student_history') }}">上机历史</a>
+            <a href="{{ url_for('student_attendance') }}">个人考勤</a>
+        {% endif %}
+        {% if session.get("role")=="teacher" %}
+            <a href="{{ url_for('teacher_schedules') }}">我的课表</a>
+        {% endif %}
+        {% if session.get("role")=="admin" %}
+            <a href="{{ url_for('admin_schedules') }}">排课管理</a>
+        {% endif %}
+        <a href="{{ url_for('repairs') }}">设备报修</a>
+    </nav>
+    {% endif %}
+
+    <main class="container">
+        {% with messages=get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <section class="messages">
+                    {% for category, message in messages %}
+                        <div class="message {{ category }}">{{ message }}</div>
+                    {% endfor %}
+                </section>
+            {% endif %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+    </main>
+</body>
+</html>

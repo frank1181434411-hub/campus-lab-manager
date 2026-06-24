@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}管理员首页{% endblock %}
+{% block content %}
+<section class="metrics">
+    <div>用户<br><strong>{{ counts.user_count }}</strong></div>
+    <div>学生<br><strong>{{ counts.student_count }}</strong></div>
+    <div>教师<br><strong>{{ counts.teacher_count }}</strong></div>
+    <div>机房<br><strong>{{ counts.room_count }}</strong></div>
+    <div>占用机位<br><strong>{{ counts.occupied_seat_count }}</strong></div>
+    <div>故障机位<br><strong>{{ counts.fault_seat_count }}</strong></div>
+    <div>待处理报修<br><strong>{{ counts.pending_repair_count }}</strong></div>
+    <div>排课<br><strong>{{ counts.schedule_count }}</strong></div>
+</section>
+
+<section class="panel">
+    <h2>账号管理</h2>
+    <table>
+        <thead><tr><th>ID</th><th>账号</th><th>角色</th><th>状态</th><th>电话</th><th>操作</th></tr></thead>
+        <tbody>
+        {% for user in users %}
+            <tr>
+                <td>{{ user.user_id }}</td><td>{{ user.username }}</td><td>{{ user.role|label }}</td><td>{{ user.status|label }}</td><td>{{ user.phone or "-" }}</td>
+                <td>
+                    <form method="post" action="{{ url_for('admin_update_user_status', user_id=user.user_id) }}" class="inline-form">
+                        <select name="status"><option value="active">启用</option><option value="disabled">禁用</option><option value="locked">锁定</option></select>
+                        <button type="submit">更新</button>
+                    </form>
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</section>
+
+<section class="grid two">
+    <div class="panel">
+        <h2>学生与班级</h2>
+        <table>
+            <thead><tr><th>学号</th><th>姓名</th><th>班级</th><th>专业</th></tr></thead>
+            <tbody>
+            {% for row in students %}
+                <tr><td>{{ row.student_id }}</td><td>{{ row.student_name }}</td><td>{{ row.class_name }}</td><td>{{ row.major }}</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div class="panel">
+        <h2>教师</h2>
+        <table>
+            <thead><tr><th>工号</th><th>姓名</th><th>职称</th></tr></thead>
+            <tbody>
+            {% for row in teachers %}
+                <tr><td>{{ row.teacher_id }}</td><td>{{ row.teacher_name }}</td><td>{{ row.title or "-" }}</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<section class="grid two">
+    <div class="panel">
+        <h2>最近上机记录</h2>
+        <table>
+            <thead><tr><th>学生</th><th>机房</th><th>机位</th><th>开始</th><th>类型</th></tr></thead>
+            <tbody>
+            {% for row in logs %}
+                <tr><td>{{ row.student_name }}</td><td>{{ row.room_id }}</td><td>{{ row.seat_no }}</td><td>{{ row.start_time }}</td><td>{{ row.use_type|label }}</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div class="panel">
+        <h2>机房利用统计</h2>
+        <table>
+            <thead><tr><th>机房</th><th>位置</th><th>使用次数</th><th>使用分钟</th></tr></thead>
+            <tbody>
+            {% for row in usage %}
+                <tr><td>{{ row.room_id }}</td><td>{{ row.room_location }}</td><td>{{ row.use_count }}</td><td>{{ row.used_minutes }}</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

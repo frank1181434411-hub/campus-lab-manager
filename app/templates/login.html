@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}登录 - 高校机房管理系统{% endblock %}
+{% block content %}
+<section class="panel narrow">
+    <h2>系统登录</h2>
+    <form method="post">
+        <label>账号</label>
+        <input name="username" required autocomplete="username">
+        <label>密码</label>
+        <input name="password" type="password" required autocomplete="current-password">
+        <button type="submit">登录</button>
+    </form>
+    <p class="hint">演示账号：stu001 / t001 / admin001，密码：123456</p>
+</section>
+{% endblock %}

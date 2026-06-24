@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}机房机位{% endblock %}
+{% block content %}
+<section class="panel">
+    <h2>机房状态</h2>
+    <table>
+        <thead><tr><th>机房</th><th>位置</th><th>开放状态</th><th>总数</th><th>空闲</th><th>自习</th><th>上课</th><th>故障</th><th>查看</th></tr></thead>
+        <tbody>
+        {% for room in rooms %}
+            <tr>
+                <td>{{ room.room_id }}</td>
+                <td>{{ room.room_location }}</td>
+                <td>{{ room.open_status|label }}</td>
+                <td>{{ room.actual_seats or 0 }}</td>
+                <td>{{ room.free_count or 0 }}</td>
+                <td>{{ room.self_study_count or 0 }}</td>
+                <td>{{ room.class_in_use_count or 0 }}</td>
+                <td>{{ room.fault_count or 0 }}</td>
+                <td><a href="{{ url_for('rooms', room_id=room.room_id) }}">机位</a></td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</section>
+
+{% if session.get("role")=="admin" %}
+<section class="panel">
+    <h2>新增机房</h2>
+    <form method="post" action="{{ url_for('admin_create_room') }}" class="form-grid">
+        <label>机房号<input name="room_id" required></label>
+        <label>位置<input name="room_location" required></label>
+        <label>总座数<input name="total_seats" type="number" min="0" required></label>
+        <label>状态
+            <select name="open_status">
+                <option value="open">开放</option>
+                <option value="closed">关闭</option>
+                <option value="maintenance">维护</option>
+            </select>
+        </label>
+        <button type="submit">创建机房</button>
+    </form>
+</section>
+{% endif %}
+
+{% if selected_room %}
+<section class="panel">
+    <h2>{{ selected_room }} 机位列表</h2>
+    <table>
+        <thead><tr><th>机位</th><th>IP</th><th>配置</th><th>状态</th><th>管理员操作</th></tr></thead>
+        <tbody>
+        {% for seat in seats %}
+            <tr>
+                <td>{{ seat.seat_no }}</td>
+                <td>{{ seat.ip_address or "-" }}</td>
+                <td>{{ seat.machine_config or "-" }}</td>
+                <td>{{ seat.seat_status|label }}</td>
+                <td>
+                    {% if session.get("role")=="admin" %}
+                    <form method="post" action="{{ url_for('admin_update_seat') }}" class="inline-form">
+                        <input type="hidden" name="room_id" value="{{ seat.room_id }}">
+                        <input type="hidden" name="seat_no" value="{{ seat.seat_no }}">
+                        <input name="ip_address" value="{{ seat.ip_address or '' }}" placeholder="IP">
+                        <input name="machine_config" value="{{ seat.machine_config or '' }}" placeholder="配置">
+                        <select name="seat_status">
+                            <option value="free">空闲</option>
+                            <option value="self_study">自习中</option>
+                            <option value="class_in_use">上课中</option>
+                            <option value="fault">故障</option>
+                        </select>
+                        <button type="submit">保存</button>
+                    </form>
+                    {% else %}
+                    -
+                    {% endif %}
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</section>
+
+{% if session.get("role")=="admin" %}
+<section class="panel">
+    <h2>新增机位</h2>
+    <form method="post" action="{{ url_for('admin_create_seat') }}" class="form-grid">
+        <input type="hidden" name="room_id" value="{{ selected_room }}">
+        <label>机位号<input name="seat_no" required></label>
+        <label>IP 地址<input name="ip_address"></label>
+        <label>机器配置<input name="machine_config"></label>
+        <label>状态
+            <select name="seat_status">
+                <option value="free">空闲</option>
+                <option value="fault">故障</option>
+            </select>
+        </label>
+        <button type="submit">创建机位</button>
+    </form>
+</section>
+{% endif %}
+{% endif %}
+{% endblock %}
