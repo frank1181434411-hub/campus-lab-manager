@@ -1,4 +1,4 @@
--- Common test and defense queries for Campus Lab Manager
+﻿-- Common test and defense queries for Campus Lab Manager
 
 USE campus_lab_manager;
 
@@ -24,9 +24,9 @@ SELECT
     ci.class_name,
     ci.major
 FROM student s
-JOIN class_info ci ON s.class_id=ci.class_id
-ORDER BY ci.class_id,
-    s.student_id;
+JOIN class_info ci
+    ON s.class_id=ci.class_id
+ORDER BY ci.class_id,s.student_id;
 
 -- 3. 查询教师课表
 -- 修改 teacher_id 可以查询指定教师课表。
@@ -44,9 +44,7 @@ SELECT
     class_period
 FROM v_teacher_schedule
 WHERE teacher_id='T001'
-ORDER BY semester,
-    weekday,
-    class_period;
+ORDER BY semester,weekday,class_period;
 
 -- 4. 查询机房空闲机位
 SELECT
@@ -56,8 +54,7 @@ SELECT
 FROM v_room_seat_status
 WHERE open_status='open'
   AND seat_status='free'
-GROUP BY room_id,
-    room_location
+GROUP BY room_id,room_location
 ORDER BY room_id;
 
 -- 5. 查询学生上机历史
@@ -103,8 +100,7 @@ SELECT
     submitter_username,
     submitter_role
 FROM v_repair_detail
-WHERE repair_status IN ('pending',
-    'processing')
+WHERE repair_status IN ('pending','processing')
 ORDER BY report_time ASC;
 
 -- 8. 查询某机房故障机位
@@ -134,27 +130,20 @@ SELECT
     SUM(CASE WHEN ul.attendance_status='late' THEN 1 ELSE 0 END) AS late_count,
     SUM(CASE WHEN ul.attendance_status='early_leave' THEN 1 ELSE 0 END) AS early_leave_count,
     SUM(CASE WHEN ul.log_id IS NULL OR ul.attendance_status='absent' THEN 1 ELSE 0 END) AS absent_count,
-    ROUND(
-        SUM(CASE WHEN ul.attendance_status IN ('normal',
-    'late',
-    'early_leave') THEN 1 ELSE 0 END)
-        / COUNT(s.student_id) * 100,
-    2
-    ) AS attendance_rate_percent
+    ROUND(SUM(CASE WHEN ul.attendance_status IN ('normal','late','early_leave') THEN 1 ELSE 0 END) / COUNT(s.student_id) * 100,2) AS attendance_rate_percent
 FROM schedule sc
-JOIN class_info ci ON sc.class_id=ci.class_id
-JOIN course c ON sc.course_id=c.course_id
-JOIN student s ON s.class_id=ci.class_id
-LEFT JOIN use_log ul
+JOIN class_info ci
+    ON sc.class_id=ci.class_id
+JOIN course c
+    ON sc.course_id=c.course_id
+JOIN student s
+    ON s.class_id=ci.class_id
+LEFT
+JOIN use_log ul
     ON ul.schedule_id=sc.schedule_id
-   AND ul.student_id=s.student_id
+  AND ul.student_id=s.student_id
 WHERE sc.schedule_id=1
-GROUP BY
-    sc.schedule_id,
-    ci.class_id,
-    ci.class_name,
-    c.course_id,
-    c.course_name;
+GROUP BY sc.schedule_id,ci.class_id,ci.class_name,c.course_id,c.course_name;
 
 -- 10. 统计机房使用率
 -- 按当前机位状态统计某机房使用率。修改 room_id 可以查询指定机房。
@@ -162,18 +151,12 @@ SELECT
     r.room_id,
     r.room_location,
     COUNT(se.seat_no) AS total_seats,
-    SUM(CASE WHEN se.seat_status IN ('self_study',
-    'class_in_use') THEN 1 ELSE 0 END) AS using_seats,
+    SUM(CASE WHEN se.seat_status IN ('self_study','class_in_use') THEN 1 ELSE 0 END) AS using_seats,
     SUM(CASE WHEN se.seat_status='free' THEN 1 ELSE 0 END) AS free_seats,
     SUM(CASE WHEN se.seat_status='fault' THEN 1 ELSE 0 END) AS fault_seats,
-    ROUND(
-        SUM(CASE WHEN se.seat_status IN ('self_study',
-    'class_in_use') THEN 1 ELSE 0 END)
-        / COUNT(se.seat_no) * 100,
-    2
-    ) AS current_usage_rate_percent
+    ROUND(SUM(CASE WHEN se.seat_status IN ('self_study','class_in_use') THEN 1 ELSE 0 END) / COUNT(se.seat_no) * 100,2) AS current_usage_rate_percent
 FROM room r
-JOIN seat se ON r.room_id=se.room_id
+JOIN seat se
+    ON r.room_id=se.room_id
 WHERE r.room_id='R101'
-GROUP BY r.room_id,
-    r.room_location;
+GROUP BY r.room_id,r.room_location;

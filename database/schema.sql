@@ -1,4 +1,4 @@
--- Campus Lab Manager database schema
+﻿-- Campus Lab Manager database schema
 -- Target DBMS: MySQL 8.0+
 
 CREATE DATABASE IF NOT EXISTS campus_lab_manager
@@ -74,8 +74,8 @@ CREATE TABLE user_account (
     role VARCHAR(20) NOT NULL,
     status VARCHAR(20) NOT NULL DEFAULT 'active',
     phone VARCHAR(20),
-    CHECK (role IN ('student', 'teacher', 'admin')),
-    CHECK (status IN ('active', 'disabled', 'locked'))
+    CHECK (role IN ('student','teacher','admin')),
+    CHECK (status IN ('active','disabled','locked'))
 ) ENGINE=InnoDB;
 
 CREATE TABLE class_info (
@@ -126,7 +126,7 @@ CREATE TABLE room (
     total_seats INT NOT NULL,
     open_status VARCHAR(20) NOT NULL DEFAULT 'open',
     CHECK (total_seats >=0),
-    CHECK (open_status IN ('open', 'closed', 'maintenance'))
+    CHECK (open_status IN ('open','closed','maintenance'))
 ) ENGINE=InnoDB;
 
 CREATE TABLE seat (
@@ -135,9 +135,9 @@ CREATE TABLE seat (
     ip_address VARCHAR(50) UNIQUE,
     machine_config VARCHAR(200),
     seat_status VARCHAR(20) NOT NULL DEFAULT 'free',
-    PRIMARY KEY (room_id, seat_no),
+    PRIMARY KEY (room_id,seat_no),
     FOREIGN KEY (room_id) REFERENCES room(room_id),
-    CHECK (seat_status IN ('free', 'self_study', 'class_in_use', 'fault'))
+    CHECK (seat_status IN ('free','self_study','class_in_use','fault'))
 ) ENGINE=InnoDB;
 
 CREATE TABLE schedule (
@@ -154,7 +154,7 @@ CREATE TABLE schedule (
     FOREIGN KEY (class_id) REFERENCES class_info(class_id),
     FOREIGN KEY (course_id) REFERENCES course(course_id),
     FOREIGN KEY (room_id) REFERENCES room(room_id),
-    UNIQUE (room_id, semester, week_no, weekday, class_period),
+    UNIQUE (room_id,semester,week_no,weekday,class_period),
     CHECK (weekday BETWEEN 1 AND 7)
 ) ENGINE=InnoDB;
 
@@ -169,10 +169,10 @@ CREATE TABLE use_log (
     use_type VARCHAR(20) NOT NULL,
     attendance_status VARCHAR(20) NOT NULL DEFAULT 'not_applicable',
     FOREIGN KEY (student_id) REFERENCES student(student_id),
-    FOREIGN KEY (room_id, seat_no) REFERENCES seat(room_id, seat_no),
+    FOREIGN KEY (room_id,seat_no) REFERENCES seat(room_id,seat_no),
     FOREIGN KEY (schedule_id) REFERENCES schedule(schedule_id),
-    CHECK (use_type IN ('free', 'class')),
-    CHECK (attendance_status IN ('normal', 'late', 'early_leave', 'absent', 'not_applicable')),
+    CHECK (use_type IN ('free','class')),
+    CHECK (attendance_status IN ('normal','late','early_leave','absent','not_applicable')),
     CHECK (end_time IS NULL OR end_time >=start_time),
     CHECK ((use_type='free' AND schedule_id IS NULL) OR (use_type='class' AND schedule_id IS NOT NULL))
 ) ENGINE=InnoDB;
@@ -188,8 +188,8 @@ CREATE TABLE repair (
     repair_status VARCHAR(20) NOT NULL DEFAULT 'pending',
     FOREIGN KEY (submitter_user_id) REFERENCES user_account(user_id),
     FOREIGN KEY (handler_user_id) REFERENCES user_account(user_id),
-    FOREIGN KEY (room_id, seat_no) REFERENCES seat(room_id, seat_no),
-    CHECK (repair_status IN ('pending', 'processing', 'done'))
+    FOREIGN KEY (room_id,seat_no) REFERENCES seat(room_id,seat_no),
+    CHECK (repair_status IN ('pending','processing','done'))
 ) ENGINE=InnoDB;
 
 CREATE INDEX idx_student_class ON student(class_id);
