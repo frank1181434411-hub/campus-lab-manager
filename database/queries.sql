@@ -130,7 +130,11 @@ SELECT
     SUM(CASE WHEN ul.attendance_status='late' THEN 1 ELSE 0 END) AS late_count,
     SUM(CASE WHEN ul.attendance_status='early_leave' THEN 1 ELSE 0 END) AS early_leave_count,
     SUM(CASE WHEN ul.log_id IS NULL OR ul.attendance_status='absent' THEN 1 ELSE 0 END) AS absent_count,
-    ROUND(SUM(CASE WHEN ul.attendance_status IN ('normal','late','early_leave') THEN 1 ELSE 0 END) / COUNT(s.student_id) * 100,2) AS attendance_rate_percent
+    ROUND(
+        SUM(CASE WHEN ul.attendance_status IN ('normal','late','early_leave') THEN 1 ELSE 0 END)
+        / COUNT(s.student_id) * 100,
+        2
+    ) AS attendance_rate_percent
 FROM schedule sc
 JOIN class_info ci
     ON sc.class_id=ci.class_id
@@ -138,8 +142,7 @@ JOIN course c
     ON sc.course_id=c.course_id
 JOIN student s
     ON s.class_id=ci.class_id
-LEFT
-JOIN use_log ul
+LEFT JOIN use_log ul
     ON ul.schedule_id=sc.schedule_id
   AND ul.student_id=s.student_id
 WHERE sc.schedule_id=1
@@ -154,7 +157,11 @@ SELECT
     SUM(CASE WHEN se.seat_status IN ('self_study','class_in_use') THEN 1 ELSE 0 END) AS using_seats,
     SUM(CASE WHEN se.seat_status='free' THEN 1 ELSE 0 END) AS free_seats,
     SUM(CASE WHEN se.seat_status='fault' THEN 1 ELSE 0 END) AS fault_seats,
-    ROUND(SUM(CASE WHEN se.seat_status IN ('self_study','class_in_use') THEN 1 ELSE 0 END) / COUNT(se.seat_no) * 100,2) AS current_usage_rate_percent
+    ROUND(
+        SUM(CASE WHEN se.seat_status IN ('self_study','class_in_use') THEN 1 ELSE 0 END)
+        / COUNT(se.seat_no) * 100,
+        2
+    ) AS current_usage_rate_percent
 FROM room r
 JOIN seat se
     ON r.room_id=se.room_id

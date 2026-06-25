@@ -83,7 +83,7 @@ CREATE TABLE class_info (
     class_name VARCHAR(50) NOT NULL,
     major VARCHAR(50) NOT NULL,
     total_number INT NOT NULL DEFAULT 0,
-    CHECK (total_number >=0)
+    CHECK (total_number>=0)
 ) ENGINE=InnoDB;
 
 CREATE TABLE student (
@@ -117,7 +117,7 @@ CREATE TABLE course (
     course_name VARCHAR(50) NOT NULL,
     total_hours INT NOT NULL,
     course_type VARCHAR(20),
-    CHECK (total_hours > 0)
+    CHECK (total_hours>0)
 ) ENGINE=InnoDB;
 
 CREATE TABLE room (
@@ -125,7 +125,7 @@ CREATE TABLE room (
     room_location VARCHAR(100) NOT NULL,
     total_seats INT NOT NULL,
     open_status VARCHAR(20) NOT NULL DEFAULT 'open',
-    CHECK (total_seats >=0),
+    CHECK (total_seats>=0),
     CHECK (open_status IN ('open','closed','maintenance'))
 ) ENGINE=InnoDB;
 
@@ -173,7 +173,7 @@ CREATE TABLE use_log (
     FOREIGN KEY (schedule_id) REFERENCES schedule(schedule_id),
     CHECK (use_type IN ('free','class')),
     CHECK (attendance_status IN ('normal','late','early_leave','absent','not_applicable')),
-    CHECK (end_time IS NULL OR end_time >=start_time),
+    CHECK (end_time IS NULL OR end_time>=start_time),
     CHECK ((use_type='free' AND schedule_id IS NULL) OR (use_type='class' AND schedule_id IS NOT NULL))
 ) ENGINE=InnoDB;
 
@@ -199,18 +199,11 @@ CREATE INDEX idx_schedule_teacher ON schedule(teacher_id);
 CREATE INDEX idx_schedule_class ON schedule(class_id);
 
 CREATE INDEX idx_schedule_room_time
-    ON schedule(room_id,
-    semester,
-    week_no,
-    weekday,
-    class_period);
+    ON schedule(room_id,semester,week_no,weekday,class_period);
 
-CREATE INDEX idx_use_log_student_time ON use_log(student_id,
-    start_time);
+CREATE INDEX idx_use_log_student_time ON use_log(student_id,start_time);
 
-CREATE INDEX idx_use_log_seat_time ON use_log(room_id,
-    seat_no,
-    start_time);
+CREATE INDEX idx_use_log_seat_time ON use_log(room_id,seat_no,start_time);
 
 CREATE INDEX idx_use_log_schedule ON use_log(schedule_id);
 
@@ -278,11 +271,9 @@ JOIN class_info ci
     ON sc.class_id=ci.class_id
 JOIN teacher t
     ON sc.teacher_id=t.teacher_id
-LEFT
-JOIN use_log ul
+LEFT JOIN use_log ul
     ON sc.schedule_id=ul.schedule_id
-LEFT
-JOIN student s
+LEFT JOIN student s
     ON ul.student_id=s.student_id;
 
 CREATE VIEW v_room_seat_status AS
@@ -313,8 +304,7 @@ SELECT
 FROM repair rp
 JOIN user_account submitter
     ON rp.submitter_user_id=submitter.user_id
-LEFT
-JOIN user_account handler
+LEFT JOIN user_account handler
     ON rp.handler_user_id=handler.user_id;
 
 DELIMITER //
@@ -332,7 +322,7 @@ SELECT
 FROM user_account
 WHERE user_id=NEW.user_id;
 
-IF account_role <> 'student' THEN
+IF account_role<>'student' THEN
         SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT='Student user_id must reference a student account.';
 
@@ -343,7 +333,7 @@ SELECT
 FROM teacher
 WHERE user_id=NEW.user_id;
 
-IF role_count > 0 THEN
+IF role_count>0 THEN
         SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT='User account already has teacher role extension.';
 
@@ -354,7 +344,7 @@ SELECT
 FROM admin
 WHERE user_id=NEW.user_id;
 
-IF role_count > 0 THEN
+IF role_count>0 THEN
         SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT='User account already has admin role extension.';
 
@@ -375,7 +365,7 @@ SELECT
 FROM user_account
 WHERE user_id=NEW.user_id;
 
-IF account_role <> 'teacher' THEN
+IF account_role<>'teacher' THEN
         SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT='Teacher user_id must reference a teacher account.';
 
@@ -386,7 +376,7 @@ SELECT
 FROM student
 WHERE user_id=NEW.user_id;
 
-IF role_count > 0 THEN
+IF role_count>0 THEN
         SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT='User account already has student role extension.';
 
@@ -397,7 +387,7 @@ SELECT
 FROM admin
 WHERE user_id=NEW.user_id;
 
-IF role_count > 0 THEN
+IF role_count>0 THEN
         SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT='User account already has admin role extension.';
 
@@ -418,7 +408,7 @@ SELECT
 FROM user_account
 WHERE user_id=NEW.user_id;
 
-IF account_role <> 'admin' THEN
+IF account_role<>'admin' THEN
         SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT='Admin user_id must reference an admin account.';
 
@@ -429,7 +419,7 @@ SELECT
 FROM student
 WHERE user_id=NEW.user_id;
 
-IF role_count > 0 THEN
+IF role_count>0 THEN
         SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT='User account already has student role extension.';
 
@@ -440,7 +430,7 @@ SELECT
 FROM teacher
 WHERE user_id=NEW.user_id;
 
-IF role_count > 0 THEN
+IF role_count>0 THEN
         SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT='User account already has teacher role extension.';
 
@@ -459,7 +449,7 @@ SELECT
 FROM room
 WHERE room_id=NEW.room_id;
 
-IF room_status <> 'open' THEN
+IF room_status<>'open' THEN
         SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT='Schedule room must be open.';
 
@@ -493,13 +483,13 @@ JOIN room r
 WHERE se.room_id=NEW.room_id
   AND se.seat_no=NEW.seat_no;
 
-IF current_room_status <> 'open' THEN
+IF current_room_status<>'open' THEN
         SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT='Room is not open.';
 
 END IF;
 
-IF current_seat_status <> 'free' THEN
+IF current_seat_status<>'free' THEN
         SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT='Seat is not available.';
 
@@ -512,7 +502,7 @@ WHERE room_id=NEW.room_id
   AND seat_no=NEW.seat_no
   AND end_time IS NULL;
 
-IF active_log_count > 0 THEN
+IF active_log_count>0 THEN
         SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT='Seat already has an active use log.';
 
@@ -534,13 +524,13 @@ SELECT
 FROM student
 WHERE student_id=NEW.student_id;
 
-IF schedule_room_id <> NEW.room_id THEN
+IF schedule_room_id<>NEW.room_id THEN
             SIGNAL SQLSTATE '45000'
             SET MESSAGE_TEXT='Class use log room must match schedule room.';
 
 END IF;
 
-IF schedule_class_id <> student_class_id THEN
+IF schedule_class_id<>student_class_id THEN
             SIGNAL SQLSTATE '45000'
             SET MESSAGE_TEXT='Student class must match schedule class.';
 
@@ -579,7 +569,7 @@ BEGIN
         SET seat_status='free'
         WHERE room_id=NEW.room_id
           AND seat_no=NEW.seat_no
-          AND seat_status <> 'fault';
+          AND seat_status<>'fault';
 
 END IF;
 
@@ -598,8 +588,7 @@ SELECT
 FROM user_account
 WHERE user_id=NEW.submitter_user_id;
 
-IF submitter_role NOT IN ('student',
-    'teacher') THEN
+IF submitter_role NOT IN ('student','teacher') THEN
         SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT='Repair submitter must be student or teacher.';
 
@@ -610,7 +599,7 @@ IF NEW.handler_user_id IS NOT NULL THEN
         FROM user_account
         WHERE user_id=NEW.handler_user_id;
 
-IF handler_role <> 'admin' THEN
+IF handler_role<>'admin' THEN
             SIGNAL SQLSTATE '45000'
             SET MESSAGE_TEXT='Repair handler must be admin.';
 
@@ -633,8 +622,7 @@ SELECT
 FROM user_account
 WHERE user_id=NEW.submitter_user_id;
 
-IF submitter_role NOT IN ('student',
-    'teacher') THEN
+IF submitter_role NOT IN ('student','teacher') THEN
         SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT='Repair submitter must be student or teacher.';
 
@@ -645,7 +633,7 @@ IF NEW.handler_user_id IS NOT NULL THEN
         FROM user_account
         WHERE user_id=NEW.handler_user_id;
 
-IF handler_role <> 'admin' THEN
+IF handler_role<>'admin' THEN
             SIGNAL SQLSTATE '45000'
             SET MESSAGE_TEXT='Repair handler must be admin.';
 
@@ -670,7 +658,7 @@ CREATE TRIGGER trg_repair_release_seat
 AFTER UPDATE ON repair
 FOR EACH ROW
 BEGIN
-    IF NEW.repair_status='done' AND OLD.repair_status <> 'done' THEN
+    IF NEW.repair_status='done' AND OLD.repair_status<>'done' THEN
         UPDATE seat
         SET seat_status='free'
         WHERE room_id=NEW.room_id

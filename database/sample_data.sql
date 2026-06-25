@@ -12,7 +12,10 @@ INSERT INTO user_account (
     (2,'stu002','123456','student','active','13800000002'),
     (3,'t001','123456','teacher','active','13800000003'),
     (4,'admin001','123456','admin','active','13800000004'),
-    (5,'stu003','123456','student','active','13800000005')
+    (5,'stu003','123456','student','active','13800000005'),
+    (6,'stu004','123456','student','active','13800000006'),
+    (7,'stu005','123456','student','active','13800000007'),
+    (8,'t002','123456','teacher','active','13800000008')
 ON DUPLICATE KEY UPDATE
     username=VALUES(username),
     password=VALUES(password),
@@ -23,8 +26,8 @@ ON DUPLICATE KEY UPDATE
 INSERT INTO class_info (
     class_id,class_name,major,total_number
 ) VALUES
-    ('CS2301','计算机2301班','计算机科学与技术',3),
-    ('SE2301','软件2301班','软件工程',0)
+    ('2024240207','计算机07班','计算机科学与技术',3),
+    ('2024240205','软件05班','软件工程',0)
 ON DUPLICATE KEY UPDATE
     class_name=VALUES(class_name),
     major=VALUES(major),
@@ -33,9 +36,11 @@ ON DUPLICATE KEY UPDATE
 INSERT INTO student (
     student_id,user_id,student_name,gender,grade,class_id
 ) VALUES
-    ('20230001',1,'张三','男','2023','CS2301'),
-    ('20230002',2,'李四','女','2023','CS2301'),
-    ('20230003',5,'王五','男','2023','CS2301')
+    ('20230001',1,'张三','男','2023','2024240207'),
+    ('20230002',2,'李四','女','2023','2024240207'),
+    ('20230003',5,'王五','男','2023','2024240207'),
+    ('20230004',6,'陈晨','女','2023','2024240205'),
+    ('20230005',7,'周航','男','2023','2024240205')
 ON DUPLICATE KEY UPDATE
     user_id=VALUES(user_id),
     student_name=VALUES(student_name),
@@ -46,7 +51,8 @@ ON DUPLICATE KEY UPDATE
 INSERT INTO teacher (
     teacher_id,user_id,teacher_name,title
 ) VALUES
-    ('T001',3,'赵老师','讲师')
+    ('T001',3,'赵老师','讲师'),
+    ('T002',8,'钱老师','副教授')
 ON DUPLICATE KEY UPDATE
     user_id=VALUES(user_id),
     teacher_name=VALUES(teacher_name),
@@ -64,7 +70,9 @@ INSERT INTO course (
     course_id,course_name,total_hours,course_type
 ) VALUES
     ('DB001','数据结构',48,'必修'),
-    ('LAB001','计算机组成原理',48,'必修')
+    ('LAB001','计算机组成原理',48,'必修'),
+    ('OS001','操作系统',48,'必修'),
+    ('NET001','计算机网络',48,'必修')
 ON DUPLICATE KEY UPDATE
     course_name=VALUES(course_name),
     total_hours=VALUES(total_hours),
@@ -74,7 +82,7 @@ INSERT INTO room (
     room_id,room_location,total_seats,open_status
 ) VALUES
     ('R101','WM2207',5,'open'),
-    ('R102','WM3409',5,'open')
+    ('R102','WM2409',5,'open')
 ON DUPLICATE KEY UPDATE
     room_location=VALUES(room_location),
     total_seats=VALUES(total_seats),
@@ -96,8 +104,10 @@ ON DUPLICATE KEY UPDATE
 INSERT INTO schedule (
     schedule_id,semester,week_no,weekday,class_period,teacher_id,class_id,course_id,room_id
 ) VALUES
-    (1,'2025-2026-1','1-16',1,'1-2','T001','CS2301','DB001','R101'),
-    (2,'2025-2026-1','1-16',3,'3-4','T001','CS2301','LAB001','R102')
+    (1,'2025-2026-1','1-16',1,'1-2','T001','2024240207','DB001','R101'),
+    (2,'2025-2026-1','1-16',3,'3-4','T001','2024240207','LAB001','R102'),
+    (3,'2025-2026-1','1-16',2,'5-6','T002','2024240205','OS001','R101'),
+    (4,'2025-2026-1','1-16',4,'7-8','T002','2024240205','NET001','R102')
 ON DUPLICATE KEY UPDATE
     semester=VALUES(semester),
     week_no=VALUES(week_no),
