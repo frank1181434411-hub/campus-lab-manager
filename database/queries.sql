@@ -70,7 +70,7 @@ SELECT
     use_type,
     attendance_status
 FROM v_student_use_history
-WHERE student_id='20230001'
+WHERE student_id='2024900001'
 ORDER BY start_time DESC;
 
 -- 6. 查询某节课考勤记录
